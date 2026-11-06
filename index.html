@@ -1,0 +1,342 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Office Spin Wheel</title>
+
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: #f3f5fa;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.container {
+    text-align: center;
+    padding: 25px;
+}
+
+h2 {
+    margin-bottom: 10px;
+    color: #222;
+}
+
+.subtitle {
+    color: #777;
+    margin-bottom: 25px;
+}
+
+.wheel-container {
+    position: relative;
+    width: 360px;
+    height: 360px;
+    margin: auto;
+}
+
+canvas {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 7px solid #fff;
+    box-shadow: 0 5px 25px #0002;
+    transition: transform 5s cubic-bezier(.15,.75,.15,1);
+}
+
+.pointer {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2;
+    width: 0;
+    height: 0;
+    border-left: 17px solid transparent;
+    border-right: 17px solid transparent;
+    border-top: 35px solid #222;
+}
+
+.spin-btn {
+    margin-top: 30px;
+    padding: 14px 45px;
+    border: none;
+    border-radius: 30px;
+    background: #0d5afd;
+    color: white;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.spin-btn:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+.result {
+    margin-top: 25px;
+    font-size: 23px;
+    font-weight: bold;
+    color: #0d5afd;
+}
+
+.progress {
+    margin-top: 12px;
+    color: #666;
+    font-size: 14px;
+}
+
+.reset-btn {
+    margin-top: 15px;
+    padding: 9px 20px;
+    border: 1px solid #ccc;
+    background: white;
+    border-radius: 20px;
+    cursor: pointer;
+}
+
+@media(max-width: 420px) {
+    .wheel-container {
+        width: 310px;
+        height: 310px;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h2>🎯 Office Spin Wheel</h2>
+    <p class="subtitle">Let's find today's lucky person!</p>
+
+    <div class="wheel-container">
+        <div class="pointer"></div>
+        <canvas id="wheel" width="700" height="700"></canvas>
+    </div>
+
+    <button class="spin-btn" id="spinBtn" onclick="spinWheel()">
+        SPIN NOW
+    </button>
+
+    <div class="result" id="result">
+        Ready to Spin!
+    </div>
+
+    <div class="progress" id="progress">
+        12 / 12 names remaining
+    </div>
+
+    <button class="reset-btn" onclick="resetWheel()">
+        Reset / New Cycle
+    </button>
+
+</div>
+
+<script>
+const names = [
+    "Arun K",
+    "Nandhini",
+    "Gayathri",
+    "Saravanapriya",
+    "Arun Kumar M",
+    "Rathis",
+    "Gokul",
+    "Kavya",
+    "Subash",
+    "Ramathilagam",
+    "Pravin",
+    "Srividya"
+];
+
+const colors = [
+    "#FF6384", "#36A2EB", "#FFCE56",
+    "#4BC0C0", "#9966FF", "#FF9F40",
+    "#E76F51", "#2A9D8F", "#A8DADC",
+    "#457B9D", "#F4A261", "#B5838D"
+];
+
+const canvas = document.getElementById("wheel");
+const ctx = canvas.getContext("2d");
+
+const spinBtn = document.getElementById("spinBtn");
+const result = document.getElementById("result");
+const progress = document.getElementById("progress");
+
+const total = names.length;
+const slice = (Math.PI * 2) / total;
+
+let remainingNames = [];
+let currentRotation = 0;
+let isSpinning = false;
+let lastWinner = null;
+
+function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+}
+
+function createNewCycle() {
+    remainingNames = shuffle([...names]);
+
+    // Prevent consecutive winner across cycle boundaries
+    if (
+        lastWinner &&
+        remainingNames[0] === lastWinner
+    ) {
+        const index = remainingNames.findIndex(
+            name => name !== lastWinner
+        );
+
+        [remainingNames[0], remainingNames[index]] =
+            [remainingNames[index], remainingNames[0]];
+    }
+}
+
+function drawWheel() {
+    const center = canvas.width / 2;
+    const radius = center - 5;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    names.forEach((name, i) => {
+        const start = -Math.PI / 2 + i * slice;
+        const end = start + slice;
+
+        ctx.beginPath();
+        ctx.moveTo(center, center);
+        ctx.arc(center, center, radius, start, end);
+        ctx.closePath();
+
+        ctx.fillStyle = colors[i];
+        ctx.fill();
+
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        ctx.save();
+        ctx.translate(center, center);
+        ctx.rotate(start + slice / 2);
+
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 21px Arial";
+
+        ctx.fillText(name, radius - 22, 0);
+
+        ctx.restore();
+    });
+}
+
+function updateProgress() {
+    progress.textContent =
+        `${remainingNames.length} / ${total} names remaining`;
+}
+
+function spinWheel() {
+
+    if (isSpinning) return;
+
+    if (remainingNames.length === 0) {
+        createNewCycle();
+        updateProgress();
+        result.textContent = "New cycle started! 🎉";
+    }
+
+    isSpinning = true;
+    spinBtn.disabled = true;
+
+    const winner = remainingNames[0];
+
+    const winnerIndex = names.indexOf(winner);
+
+    const centerAngle =
+        -90 + (winnerIndex + 0.5) * (360 / total);
+
+    const currentAngle = currentRotation % 360;
+
+    let extraRotation =
+        (270 - centerAngle - currentAngle + 360) % 360;
+
+    const spins = 5 + Math.floor(Math.random() * 3);
+
+    const targetRotation =
+        currentRotation + spins * 360 + extraRotation;
+
+    canvas.style.transform =
+        `rotate(${targetRotation}deg)`;
+
+    currentRotation = targetRotation;
+
+    setTimeout(() => {
+
+        result.textContent = "🎉 Winner: " + winner;
+
+        lastWinner = winner;
+
+        // Remove winner: cannot appear again this cycle
+        remainingNames.shift();
+
+        updateProgress();
+
+        isSpinning = false;
+        spinBtn.disabled = false;
+
+        if (remainingNames.length === 0) {
+            progress.textContent =
+                "Cycle completed! All 12 names selected.";
+            spinBtn.textContent = "START NEW CYCLE";
+        } else {
+            spinBtn.textContent = "SPIN AGAIN";
+        }
+
+    }, 5100);
+}
+
+function resetWheel() {
+    if (isSpinning) return;
+
+    lastWinner = null;
+    currentRotation = 0;
+
+    canvas.style.transition = "none";
+    canvas.style.transform = "rotate(0deg)";
+
+    createNewCycle();
+    drawWheel();
+    updateProgress();
+
+    result.textContent = "Ready to Spin!";
+    spinBtn.textContent = "SPIN NOW";
+    spinBtn.disabled = false;
+
+    setTimeout(() => {
+        canvas.style.transition =
+            "transform 5s cubic-bezier(.15,.75,.15,1)";
+    }, 50);
+}
+
+createNewCycle();
+drawWheel();
+updateProgress();
+
+</script>
+
+</body>
+</html>
